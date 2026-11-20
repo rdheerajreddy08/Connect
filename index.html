@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GridWatch – Electricity Infrastructure Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#16242b;--mut:#5d6f77;--bg:#eef1ee;--card:#fff;--line:#d5dcd8;--pri:#0f5c4d;--amb:#e8a317;--red:#c0392b;--blu:#2467a8;--grn:#2e8b57}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+h1,h2,h3{margin:0;line-height:1.2}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--amb);outline-offset:2px}
+header{background:var(--ink);color:#fff;display:flex;align-items:center;gap:20px;padding:0 20px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:19px;padding:14px 0;display:flex;align-items:center;gap:8px}
+.brand i{width:12px;height:22px;background:var(--amb);clip-path:polygon(60% 0,0 55%,45% 55%,30% 100%,100% 40%,55% 40%)}
+nav{display:flex;gap:2px;flex:1;overflow-x:auto}
+nav button{background:none;border:0;color:#b9c8cd;padding:16px 14px;border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:#fff;border-color:var(--amb)}
+.who{font-size:13px;color:#b9c8cd;display:flex;gap:10px;align-items:center}
+.who button{background:#2a3d46;border:0;color:#fff;padding:6px 10px;border-radius:4px}
+#banner{background:var(--red);color:#fff;padding:10px 20px;font-weight:500;display:none}
+#banner.on{display:block}
+main{max-width:1240px;margin:0 auto;padding:20px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px}
+.grow{flex:1 1 320px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--pri);border-radius:6px;padding:12px 14px}
+.stat b{font-size:28px;display:block;line-height:1.1}
+.stat span{color:var(--mut);font-size:13px}
+.stat.r{border-left-color:var(--red)}.stat.a{border-left-color:var(--amb)}.stat.b{border-left-color:var(--blu)}
+.bar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:14px}
+.bar em{flex:0 0 120px;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar div{height:14px;background:var(--pri);border-radius:2px;min-width:3px}
+.bar.hot div{background:var(--red)}
+.bar small{color:var(--mut)}
+.head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:5px;padding:8px 14px;font-weight:500}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.red{background:var(--red)}
+.btn.sm{padding:4px 9px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:var(--mut);font-weight:500;border-bottom:2px solid var(--line);padding:8px}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;background:#e4e9e6}
+.Critical,.Damaged{background:#f6d5d1;color:#8d1f14}.High,.Needs-repair{background:#fbe4b5;color:#7a5200}
+.Medium,.Assigned,.In-Progress{background:#d6e5f4;color:#17446f}.Low,.Good,.Resolved{background:#d4ecdd;color:#1d5c38}
+.Reported{background:#eadcf3;color:#58307a}
+#map{height:560px;border-radius:6px;border:1px solid var(--line)}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #b8c3be;border-radius:5px;background:#fff}
+label{display:block;font-size:13px;font-weight:500;margin:10px 0 3px}
+label.chk{display:flex;gap:8px;align-items:center}label.chk input{width:auto}
+.filters{display:flex;gap:8px;flex-wrap:wrap}.filters select{width:auto}
+dialog{border:0;border-radius:8px;padding:22px;width:min(480px,94vw);max-height:92vh}
+dialog::backdrop{background:rgba(10,20,25,.55)}
+.acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.pub{max-width:520px;margin:30px auto}
+.muted{color:var(--mut)}.note{font-size:13px;color:var(--mut);margin-top:10px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:6px;display:none;z-index:9999}
+.mk{border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0006}
+@media(max-width:640px){#map{height:420px}main{padding:12px}}
+@media(prefers-reduced-motion:no-preference){.pulse{animation:p 1.6s infinite}@keyframes p{50%{opacity:.55}}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status"></div>
+<dialog id="dlg"><form id="dform" method="dialog"></form></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============ CONFIG – paste your Supabase values to go live. Leave empty for demo mode ============ */
+const SUPABASE_URL = "";
+const SUPABASE_KEY = "";
+const MAP_CENTER = [13.2957, 77.5373]; // change to your region
+/* ====================================================================================================== */
+
+const DEMO = !SUPABASE_URL;
+const sb = DEMO ? null : supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const S = { poles: [], techs: [], faults: [], alert: false, tab: 'dashboard', user: null };
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tag = v => `<span class="tag ${esc(v).replace(/ /g,'-')}">${esc(v)}</span>`;
+const fmt = d => d ? new Date(d).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'}) : '–';
+const toast = m => { const t=$('#toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2600); };
+const SEV = {Low:1, Medium:2, High:3, Critical:4}, SEVC = {Low:'#2e8b57', Medium:'#2467a8', High:'#e8a317', Critical:'#c0392b'};
+const poleName = id => S.poles.find(p => p.id === id)?.code || '–';
+const techName = id => S.techs.find(t => t.id === id)?.name || 'Unassigned';
+
+/* ---------- data layer: Supabase or localStorage demo ---------- */
+function seed() {
+  const v = ['Hosahalli','Chikkanahalli','Gollahalli','Doddabele','Kenchanahalli'];
+  const poles = []; let n = 1;
+  v.forEach((vl, i) => { for (let k = 0; k < 4; k++) poles.push({
+    id: crypto.randomUUID(), code: 'EP-' + String(n++).padStart(3,'0'), village: vl,
+    lat: MAP_CENTER[0] + (i - 2) * 0.012 + k * 0.003 - 0.005, lng: MAP_CENTER[1] + ((i * 7) % 5 - 2) * 0.012 + k * 0.004,
+    pole_type: ['Concrete','Steel','Wooden'][(i + k) % 3], status: ['Good','Good','Needs repair','Damaged'][(i * 3 + k) % 4],
+    last_maintained: `2026-0${1 + (k + i) % 9}-1${k}` }); });
+  const techs = [{name:'Ravi Kumar',phone:'9880011111',area:'Hosahalli'},{name:'Manjunath S',phone:'9880022222',area:'Gollahalli'},{name:'Lakshmi N',phone:'9880033333',area:'Doddabele'}]
+    .map(t => ({...t, id: crypto.randomUUID()}));
+  const h = x => new Date(Date.now() - x * 3600e3).toISOString();
+  const mk = (i, d, sev, st, tech, hrs, crit) => { const p = poles[i]; return { id: crypto.randomUUID(), village: p.village, description: d, severity: sev, critical_facility: !!crit,
+    pole_id: p.id, lat: p.lat, lng: p.lng, reporter: 'Villager', phone: '', status: st, technician_id: tech ? techs[tech - 1].id : null,
+    created_at: h(hrs), resolved_at: st === 'Resolved' ? h(hrs - 5) : null, notes: '' }; };
+  const faults = [mk(0,'Wire fallen across road after storm','Critical','Reported',0,3,true), mk(3,'Pole leaning, transformer sparking','High','Assigned',1,9),
+    mk(5,'Power cut since morning rain','Medium','In Progress',2,20), mk(8,'Loose wire near school','High','Reported',0,6,true),
+    mk(10,'Pole snapped by tree fall','Critical','Assigned',3,12), mk(2,'Voltage fluctuation','Low','Resolved',1,70), mk(3,'Fuse blown','Medium','Resolved',1,120),
+    mk(3,'Wire sagging','Medium','Resolved',2,200), mk(14,'Street light circuit dead','Low','Reported',0,30)];
+  return { poles, techs, faults, alert: false };
+}
+const DB = {
+  async load() {
+    if (DEMO) { let d = JSON.parse(localStorage.getItem('gridwatch') || 'null'); if (!d) { d = seed(); localStorage.setItem('gridwatch', JSON.stringify(d)); } Object.assign(S, d); return; }
+    const [p, t, f, s] = await Promise.all([sb.from('poles').select('*').order('code'), sb.from('technicians').select('*').order('name'),
+      sb.from('faults').select('*').order('created_at', {ascending:false}), sb.from('settings').select('*').eq('key','disaster_mode')]);
+    [p,t,f,s].forEach(r => r.error && toast(r.error.message));
+    S.poles = p.data || []; S.techs = t.data || []; S.faults = f.data || []; S.alert = s.data?.[0]?.value === 'true';
+  },
+  persist() { if (DEMO) localStorage.setItem('gridwatch', JSON.stringify({poles:S.poles, techs:S.techs, faults:S.faults, alert:S.alert})); },
+  async add(t, row) {
+    if (DEMO) { S[t].unshift({...row, id: crypto.randomUUID(), created_at: new Date().toISOString()}); return this.persist(); }
+    const {error} = await sb.from(t === 'techs' ? 'technicians' : t).insert(row); if (error) toast(error.message); await this.load();
+  },
+  async upd(t, id, patch) {
+    if (DEMO) { Object.assign(S[t].find(x => x.id === id), patch); return this.persist(); }
+    const {error} = await sb.from(t === 'techs' ? 'technicians' : t).update(patch).eq('id', id); if (error) toast(error.message); await this.load();
+  },
+  async del(t, id) {
+    if (DEMO) { S[t] = S[t].filter(x => x.id !== id); return this.persist(); }
+    const {error} = await sb.from(t === 'techs' ? 'technicians' : t).delete().eq('id', id); if (error) toast(error.message); await this.load();
+  },
+  async setAlert(on) {
+    S.alert = on;
+    if (DEMO) return this.persist();
+    const {error} = await sb.from('settings').upsert({key:'disaster_mode', value:String(on)}); if (error) toast(error.message);
+  }
+};
+
+/* ---------- helpers ---------- */
+function priority(f) { const hrs = (Date.now() - new Date(f.created_at)) / 36e5; return SEV[f.severity] * 10 + (S.alert && f.critical_facility ? 20 : f.critical_facility ? 8 : 0) + Math.min(hrs / 4, 12); }
+const open = () => S.faults.filter(f => f.status !== 'Resolved');
+function form(title, fields, onSubmit, data = {}) {
+  const f = $('#dform');
+  f.innerHTML = `<h2>${esc(title)}</h2>` + fields.map(x => {
+    const v = data[x.k] ?? x.def ?? '';
+    if (x.type === 'check') return `<label class="chk"><input type="checkbox" name="${x.k}" ${v ? 'checked' : ''}> ${esc(x.l)}</label>`;
+    const ctl = x.type === 'select' ? `<select name="${x.k}">${x.opts.map(o => { const [val, lab] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(val)}" ${val == v ? 'selected' : ''}>${esc(lab)}</option>`; }).join('')}</select>`
+      : x.type === 'area' ? `<textarea name="${x.k}" rows="3" ${x.req ? 'required' : ''}>${esc(v)}</textarea>`
+      : `<input name="${x.k}" type="${x.type || 'text'}" step="any" value="${esc(v)}" ${x.req ? 'required' : ''}>`;
+    return `<label>${esc(x.l)}</label>${ctl}`; }).join('') +
+    `<div class="acts"><button type="button" class="btn alt" onclick="$('#dlg').close()">Cancel</button><button class="btn">Save</button></div>`;
+  f.onsubmit = async e => { e.preventDefault(); const d = {}; fields.forEach(x => { const el = f.elements[x.k]; let val = x.type === 'check' ? el.checked : el.value;
+      if (x.type === 'number') val = val === '' ? null : +val; if (val === '' && (x.type === 'select' || x.type === 'date')) val = null; d[x.k] = val; });
+    $('#dlg').close(); await onSubmit(d); render(); };
+  $('#dlg').showModal();
+}
+
+/* ---------- actions ---------- */
+const villages = () => [...new Set(S.poles.map(p => p.village))].sort();
+const poleOpts = () => [['', '— none —'], ...S.poles.map(p => [p.id, `${p.code} (${p.village})`])];
+function withPoleCoords(d) { const p = S.poles.find(x => x.id === d.pole_id); if (p && d.lat == null) { d.lat = p.lat; d.lng = p.lng; if (!d.village) d.village = p.village; } return d; }
+const faultFields = [
+  {k:'village', l:'Village / area', req:1}, {k:'description', l:'What happened?', type:'area', req:1},
+  {k:'severity', l:'Severity', type:'select', opts:['Low','Medium','High','Critical'], def:'Medium'},
+  {k:'critical_facility', l:'Affects a hospital, school or water pump', type:'check'},
+  {k:'pole_id', l:'Nearest pole', type:'select', opts:null}, {k:'lat', l:'Latitude (optional)', type:'number'}, {k:'lng', l:'Longitude (optional)', type:'number'},
+  {k:'reporter', l:'Reported by'}, {k:'phone', l:'Phone', type:'tel'}];
+const addFault = () => { const ff = faultFields.map(x => x.k === 'pole_id' ? {...x, opts: poleOpts()} : x);
+  form('Report a power problem', ff, d => DB.add('faults', {...withPoleCoords(d), status:'Reported'})); };
+const addPole = (p) => form(p ? 'Edit pole ' + p.code : 'Add electric pole', [
+  {k:'code', l:'Pole code', req:1, def:'EP-' + String(S.poles.length + 1).padStart(3,'0')}, {k:'village', l:'Village', req:1},
+  {k:'lat', l:'Latitude', type:'number', req:1, def:MAP_CENTER[0]}, {k:'lng', l:'Longitude', type:'number', req:1, def:MAP_CENTER[1]},
+  {k:'pole_type', l:'Type', type:'select', opts:['Concrete','Steel','Wooden']}, {k:'status', l:'Condition', type:'select', opts:['Good','Needs repair','Damaged']},
+  {k:'last_maintained', l:'Last maintained', type:'date'}], d => p ? DB.upd('poles', p.id, d) : DB.add('poles', d), p || {});
+const addTech = () => form('Add technician', [{k:'name', l:'Name', req:1}, {k:'phone', l:'Phone', type:'tel'}, {k:'area', l:'Area covered'}], d => DB.add('techs', d));
+const editFault = id => { const f = S.faults.find(x => x.id === id);
+  form('Update complaint', [
+    {k:'status', l:'Status', type:'select', opts:['Reported','Assigned','In Progress','Resolved']},
+    {k:'technician_id', l:'Assign technician', type:'select', opts:[['', 'Unassigned'], ...S.techs.map(t => [t.id, `${t.name} – ${t.area || ''}`])]},
+    {k:'severity', l:'Severity', type:'select', opts:['Low','Medium','High','Critical']}, {k:'notes', l:'Repair notes', type:'area'}],
+    async d => { if (d.technician_id && d.status === 'Reported') d.status = 'Assigned'; d.resolved_at = d.status === 'Resolved' ? (f.resolved_at || new Date().toISOString()) : null;
+      await DB.upd('faults', id, d); if (d.status === 'Resolved' && f.pole_id) await DB.upd('poles', f.pole_id, {status:'Good', last_maintained: new Date().toISOString().slice(0,10)}); toast('Complaint updated'); }, f); };
+const delItem = async (t, id) => { if (confirm('Delete this record?')) { await DB.del(t, id); render(); } };
+const toggleAlert = async () => { await DB.setAlert(!S.alert); toast(S.alert ? 'Disaster mode ON – critical faults prioritised' : 'Disaster mode OFF'); render(); };
+async function checkRain() {
+  try { const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${MAP_CENTER[0]}&longitude=${MAP_CENTER[1]}&daily=precipitation_sum&forecast_days=2`)).json();
+    const mm = Math.max(...r.daily.precipitation_sum); $('#rain').innerHTML = mm >= 30 ? `<b style="color:var(--red)">Heavy rain forecast: ${mm} mm.</b> Consider enabling disaster mode.` : `Forecast peak rainfall in 48 hours: ${mm} mm.`;
+  } catch { $('#rain').textContent = 'Rainfall forecast unavailable (offline).'; } }
+
+/* ---------- views ---------- */
+const V = {};
+V.dashboard = () => {
+  const o = open(), crit = o.filter(f => f.severity === 'Critical'), res = S.faults.filter(f => f.resolved_at);
+  const avg = res.length ? (res.reduce((a, f) => a + (new Date(f.resolved_at) - new Date(f.created_at)), 0) / res.length / 36e5).toFixed(1) : '–';
+  const top = [...o].sort((a, b) => priority(b) - priority(a)).slice(0, 6);
+  return `<div class="stats">
+    <div class="stat r"><b>${o.length}</b><span>Open complaints</span></div><div class="stat r"><b>${crit.length}</b><span>Critical faults</span></div>
+    <div class="stat a"><b>${S.poles.filter(p => p.status !== 'Good').length}</b><span>Poles needing attention</span></div>
+    <div class="stat b"><b>${S.faults.filter(f => f.status === 'Assigned' || f.status === 'In Progress').length}</b><span>Repairs underway</span></div>
+    <div class="stat"><b>${avg}${avg === '–' ? '' : ' h'}</b><span>Avg. time to restore</span></div></div>
+  <div class="row"><div class="card grow" style="flex-basis:520px"><div class="head"><h3>${S.alert ? 'Priority queue (disaster mode)' : 'Next to attend'}</h3><button class="btn alt sm" onclick="go('faults')">All complaints</button></div>
+    ${top.length ? `<div class="scroll"><table><tr><th>Village</th><th>Problem</th><th>Severity</th><th>Status</th><th></th></tr>${top.map(f => `<tr><td>${esc(f.village)}</td><td>${esc(f.description)}${f.critical_facility ? ' <span class="tag Critical">critical facility</span>' : ''}</td><td>${tag(f.severity)}</td><td>${tag(f.status)}</td><td><button class="btn sm" onclick="editFault('${f.id}')">Update</button></td></tr>`).join('')}</table></div>` : '<p class="muted">No open complaints. Power is running smoothly.</p>'}
+  </div><div class="card grow"><h3>Weather watch</h3><p id="rain" class="muted">Checking rainfall forecast…</p>
+    <button class="btn ${S.alert ? 'alt' : 'red'}" onclick="toggleAlert()">${S.alert ? 'Turn off disaster mode' : 'Activate disaster mode'}</button>
+    <p class="note">Disaster mode puts a banner on every screen, ranks faults by severity and critical facilities (hospitals, schools, water pumps), and shows the alert to the public report page.</p></div></div>`;
+};
+V.map = () => `<div class="head"><h2>Fault map</h2><span class="muted">Pole colour = open fault severity · grey = no open fault · ring = damaged pole</span></div><div id="map"></div>`;
+V.poles = () => `<div class="head"><h2>Electric poles (${S.poles.length})</h2><button class="btn" onclick="addPole()">Add pole</button></div>
+  <div class="card scroll"><table><tr><th>Code</th><th>Village</th><th>Type</th><th>Condition</th><th>Last maintained</th><th>Faults on record</th><th></th></tr>
+  ${S.poles.map(p => `<tr><td><b>${esc(p.code)}</b></td><td>${esc(p.village)}</td><td>${esc(p.pole_type)}</td><td>${tag(p.status)}</td><td>${esc(p.last_maintained || '–')}</td><td>${S.faults.filter(f => f.pole_id === p.id).length}</td>
+  <td style="white-space:nowrap"><button class="btn alt sm" onclick='addPole(S.poles.find(x=>x.id==="${p.id}"))'>Edit</button> <button class="btn alt sm" onclick="delItem('poles','${p.id}')">Delete</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No poles yet. Add the first one.</td></tr>'}</table></div>`;
+let FF = {status:'open', severity:''};
+V.faults = () => { let list = [...S.faults]; if (FF.status === 'open') list = list.filter(f => f.status !== 'Resolved'); else if (FF.status) list = list.filter(f => f.status === FF.status);
+  if (FF.severity) list = list.filter(f => f.severity === FF.severity); list.sort((a, b) => priority(b) - priority(a));
+  return `<div class="head"><h2>Complaints and tasks</h2><div class="filters">
+    <select onchange="FF.status=this.value;render()" aria-label="Status filter">${[['open','Open only'],['','All'],['Reported','Reported'],['Assigned','Assigned'],['In Progress','In progress'],['Resolved','Resolved']].map(([v, l]) => `<option value="${v}" ${FF.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <select onchange="FF.severity=this.value;render()" aria-label="Severity filter"><option value="">Any severity</option>${['Critical','High','Medium','Low'].map(s => `<option ${FF.severity === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+    <button class="btn" onclick="addFault()">Log complaint</button></div></div>
+  <div class="card scroll"><table><tr><th>Reported</th><th>Village / pole</th><th>Problem</th><th>Severity</th><th>Status</th><th>Technician</th><th></th></tr>
+  ${list.map(f => `<tr><td>${fmt(f.created_at)}</td><td>${esc(f.village)}<br><span class="muted">${esc(poleName(f.pole_id))}</span></td><td>${esc(f.description)}${f.critical_facility ? ' <span class="tag Critical">critical facility</span>' : ''}${f.notes ? `<br><span class="muted">Notes: ${esc(f.notes)}</span>` : ''}</td>
+  <td>${tag(f.severity)}</td><td>${tag(f.status)}</td><td>${esc(techName(f.technician_id))}</td><td style="white-space:nowrap"><button class="btn sm" onclick="editFault('${f.id}')">Update</button> <button class="btn alt sm" onclick="delItem('faults','${f.id}')">Delete</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nothing matches these filters.</td></tr>'}</table></div>`; };
+V.techs = () => `<div class="head"><h2>Technicians</h2><button class="btn" onclick="addTech()">Add technician</button></div>
+  <div class="card scroll"><table><tr><th>Name</th><th>Phone</th><th>Area</th><th>Active tasks</th><th>Completed</th><th></th></tr>
+  ${S.techs.map(t => `<tr><td><b>${esc(t.name)}</b></td><td>${esc(t.phone)}</td><td>${esc(t.area)}</td><td>${S.faults.filter(f => f.technician_id === t.id && f.status !== 'Resolved').length}</td><td>${S.faults.filter(f => f.technician_id === t.id && f.status === 'Resolved').length}</td><td><button class="btn alt sm" onclick="delItem('techs','${t.id}')">Remove</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Add technicians to assign repair work.</td></tr>'}</table></div>`;
+V.analytics = () => {
+  const by = (arr, key) => Object.entries(arr.reduce((m, x) => (m[key(x)] = (m[key(x)] || 0) + 1, m), {})).sort((a, b) => b[1] - a[1]);
+  const vil = by(S.faults, f => f.village), pol = by(S.faults.filter(f => f.pole_id), f => poleName(f.pole_id)).slice(0, 6), mx = vil[0]?.[1] || 1, avg = S.faults.length / (vil.length || 1);
+  const bars = (rows, m, hot) => rows.map(([k, c]) => `<div class="bar ${hot && c > avg * 1.4 && c >= 3 ? 'hot' : ''}"><em>${esc(k)}</em><div style="width:${c / m * 60}%"></div><small>${c}</small></div>`).join('') || '<p class="muted">No data yet.</p>';
+  const hot = vil.filter(([, c]) => c > avg * 1.4 && c >= 3).map(v => v[0]);
+  return `<h2 style="margin-bottom:14px">Fault analysis</h2><div class="row"><div class="card grow"><h3>Faults by village</h3>${bars(vil, mx, true)}
+    <p class="note">${hot.length ? `<b>Recommended for regular inspection:</b> ${hot.map(esc).join(', ')} (red bars have well above average failures).` : 'No area stands out yet. Keep logging faults to build a pattern.'}</p></div>
+    <div class="card grow"><h3>Most fault-prone poles</h3>${bars(pol, pol[0]?.[1] || 1)}</div>
+    <div class="card grow"><h3>By severity</h3>${bars(by(S.faults, f => f.severity), mx)}<h3 style="margin-top:18px">By status</h3>${bars(by(S.faults, f => f.status), mx)}</div></div>`;
+};
+
+/* ---------- map ---------- */
+let MAP;
+function drawMap() {
+  if (MAP) MAP.remove();
+  MAP = L.map('map').setView(MAP_CENTER, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(MAP);
+  const pts = [];
+  S.poles.forEach(p => { const fs = open().filter(f => f.pole_id === p.id).sort((a, b) => SEV[b.severity] - SEV[a.severity]);
+    const col = fs[0] ? SEVC[fs[0].severity] : '#8a9a93';
+    L.circleMarker([p.lat, p.lng], {radius: fs[0] ? 10 : 6, color: p.status === 'Damaged' ? '#000' : '#fff', weight: p.status === 'Damaged' ? 3 : 2, fillColor: col, fillOpacity: .95})
+      .bindPopup(`<b>${esc(p.code)}</b> – ${esc(p.village)}<br>${esc(p.pole_type)} · ${esc(p.status)}${fs.map(f => `<br>⚡ ${esc(f.description)} (${esc(f.severity)})`).join('')}`).addTo(MAP); pts.push([p.lat, p.lng]); });
+  open().filter(f => !f.pole_id && f.lat != null).forEach(f => { L.circleMarker([f.lat, f.lng], {radius:10, color:'#fff', fillColor:SEVC[f.severity], fillOpacity:.95}).bindPopup(`<b>${esc(f.village)}</b><br>${esc(f.description)}`).addTo(MAP); pts.push([f.lat, f.lng]); });
+  if (pts.length) MAP.fitBounds(pts, {padding:[40, 40]});
+}
+
+/* ---------- shell ---------- */
+const TABS = [['dashboard','Dashboard'],['map','Fault map'],['faults','Complaints'],['poles','Poles'],['techs','Technicians'],['analytics','Analysis']];
+const go = t => { S.tab = t; render(); };
+function render() {
+  $('#app').innerHTML = `<header><div class="brand"><i></i>GridWatch</div><nav>${TABS.map(([k, l]) => `<button class="${S.tab === k ? 'on' : ''}" onclick="go('${k}')">${l}</button>`).join('')}</nav>
+    <div class="who">${DEMO ? 'Demo mode · data saved in this browser' : esc(S.user?.email || '')}${DEMO ? '<button onclick="resetDemo()">Reset sample data</button>' : '<button onclick="signOut()">Sign out</button>'}</div></header>
+    <div id="banner" class="${S.alert ? 'on' : ''}" role="alert"><span class="pulse">●</span> DISASTER MODE ACTIVE – ${open().filter(f => f.severity === 'Critical').length} critical faults open. Faults are ranked by severity and critical facilities.</div>
+    <main>${V[S.tab]()}</main>`;
+  if (S.tab === 'map') drawMap(); if (S.tab === 'dashboard') checkRain();
+}
+const resetDemo = () => { if (confirm('Replace all demo data with fresh sample data?')) { localStorage.removeItem('gridwatch'); boot(); } };
+const signOut = async () => { await sb.auth.signOut(); S.user = null; boot(); };
+
+function publicPage() {
+  $('#app').innerHTML = `<div class="pub"><div class="brand" style="color:var(--ink)"><i></i>GridWatch</div><div id="banner" class="${S.alert ? 'on' : ''}" style="margin:10px 0;border-radius:6px">Heavy weather alert: repair crews are prioritising hospitals, schools and water supply.</div>
+    <div class="card"><h2>Report a power problem</h2><p class="muted">Tell us where the problem is and what you see. Stay away from fallen wires and call 1912 if anyone is in danger.</p>
+    <form id="pf"><label>Village / area</label><input name="village" required><label>What happened?</label><textarea name="description" rows="3" required></textarea>
+    <label>How serious is it?</label><select name="severity"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select>
+    <label class="chk"><input type="checkbox" name="cf"> It affects a hospital, school or water pump</label><label>Your name</label><input name="reporter"><label>Phone</label><input name="phone" type="tel">
+    <div class="acts"><button type="button" class="btn alt" id="loc">Use my location</button><button class="btn">Send report</button></div></form><p id="ok" class="note"></p></div></div>`;
+  let ll = {}; $('#loc').onclick = () => navigator.geolocation?.getCurrentPosition(p => { ll = {lat:p.coords.latitude, lng:p.coords.longitude}; toast('Location added'); }, () => toast('Could not get location'));
+  $('#pf').onsubmit = async e => { e.preventDefault(); const f = e.target.elements;
+    const row = {village:f.village.value, description:f.description.value, severity:f.severity.value, critical_facility:f.cf.checked, reporter:f.reporter.value, phone:f.phone.value, status:'Reported', ...ll};
+    if (DEMO) { S.faults.unshift({...row, id:crypto.randomUUID(), created_at:new Date().toISOString()}); DB.persist(); } else { const {error} = await sb.from('faults').insert(row); if (error) return toast(error.message); }
+    e.target.reset(); $('#ok').textContent = 'Thank you. Your report was received and sent to the electricity department.'; };
+}
+
+function loginPage() {
+  $('#app').innerHTML = `<div class="pub"><div class="brand" style="color:var(--ink)"><i></i>GridWatch</div><div class="card"><h2>Officer sign in</h2><form id="lf"><label>Email</label><input name="e" type="email" required><label>Password</label><input name="p" type="password" required>
+    <div class="acts"><button class="btn">Sign in</button></div></form><p class="note">Citizens can report problems at <a href="#report">/#report</a> without signing in.</p></div></div>`;
+  $('#lf').onsubmit = async e => { e.preventDefault(); const {error} = await sb.auth.signInWithPassword({email:e.target.e.value, password:e.target.p.value}); error ? toast(error.message) : boot(); };
+}
+
+async function boot() {
+  if (location.hash === '#report') { if (!DEMO) { const {data} = await sb.from('settings').select('*').eq('key','disaster_mode'); S.alert = data?.[0]?.value === 'true'; } else await DB.load(); return publicPage(); }
+  if (!DEMO) { const {data} = await sb.auth.getSession(); S.user = data.session?.user; if (!S.user) return loginPage(); }
+  await DB.load(); render();
+}
+addEventListener('hashchange', boot);
+boot();
+</script>
+</body>
+</html>
